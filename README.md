@@ -747,7 +747,7 @@ conda run -n gtdbtk-2.1.1 gtdbtk classify_wf --cpus ${thread} --batchfile ${outp
 
 }
 ```
-##
+## Using DRAM to annotation binning sequence gene and pathway.
 ```sh
 dramf(){
 [[ -d ${output}/ah-dram/${name}/bin ]] || mkdir -p ${output}/ah-dram/${name}/bin
