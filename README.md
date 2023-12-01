@@ -1,6 +1,7 @@
 # metagenome
 
 
+## 1. Set envrionment variable.
 ```sh
 db=/public/home/2022122/xugang/project/maize_genome/maize_db2
 db=/public/home/2022122/xugang/project/alfalfa_genome/alfalfa.zm1
@@ -15,7 +16,10 @@ node=Fnode2
 #node=Cnode
 #node=Gnode
 #################
+```
 
+## 2. Remove adapters and keep unique reads.
+```sh
 prepare_fastq(){
 
 [[ -d $output/a1-cleandata/${name} ]] || mkdir -p $output/a1-cleandata/${name}
@@ -61,8 +65,10 @@ mv ${output}/a2-decontaminate/clean_reads/${name}_2.fastq.u* ${output}/a2-decont
 }
 
 
+```
 
-
+## 3. Remove duplicates.
+```sh
 rmdup_sample(){
 [[ -d $output/aa2-decontaminate/rmdu ]] || mkdir -p $output/a2-decontaminate/rmdu
 
@@ -73,23 +79,22 @@ echo "#!/bin/bash
 #SBATCH -J 2${name}
 #SBATCH -N 1
 #SBATCH -n ${thread}
-
-
 date
 #source /public/home/2022122/xugang/bashrc
 #fastuniq -i ${output}/a2-decontaminate/clean_reads/${name}_input_list.txt -t q -o ${output}/a2-decontaminate/rmdu/${name}_1.fastq -p ${output}/a2-decontaminate/rmdu/${name}_2.fastq -c 1
 perl `pwd`/b4.unique.pl ${output}/a2-decontaminate/clean_reads/${name}_1.fastq ${output}/a2-decontaminate/clean_reads/${name}_2.fastq ${name}
 mv ${output}/a2-decontaminate/clean_reads/${name}_1.fastq.u* ${output}/a2-decontaminate/rmdu
 mv ${output}/a2-decontaminate/clean_reads/${name}_2.fastq.u* ${output}/a2-decontaminate/rmdu
-
 ">a3.du.${counter}.${name}.sh
 
 
 }
+```
+
+## 4. merge the fastq to big fastq
+```sh
 
 merge_fq(){
-
-
 rm $output/a2-decontaminate/rmdu/list.*.txt
 prefix=1
 for i in `ls $output/a2-decontaminate/rmdu/|grep 1.fastq.unq.fq|grep -v total`;do 
@@ -124,11 +129,12 @@ echo "#!/bin/bash
 echo date
 xargs < $output/a2-decontaminate/rmdu/list.$i.2.txt cat > $output/a2-decontaminate/rmdu/part.$i.2.fastq
 ">a2.merge.${counter}.$i.2.sh
-
 done
-
-
 }
+```
+
+## remove merged fastq file(optional).
+```sh
 rmdup(){
 echo "$output/a2-decontaminate/total_1.fastq
 $output/a2-decontaminate/total_2.fastq">$output/a2-decontaminate/input_list.txt
@@ -145,6 +151,10 @@ mv ${output}/a2-decontaminate/rmdu/total_1.fastq.unq.fq ${output}/a2-decontamina
 mv ${output}/a2-decontaminate/rmdu/total_2.fastq.unq.fq ${output}/a2-decontaminate/total_2.fastq
 ">a2.du.${counter}.sh
 }
+```
+
+## 
+```sh
 assemblyf_bd(){
 date
 file=a3-assembly
@@ -167,6 +177,10 @@ conda run -n metawrap-env metaWRAP assembly -1 $output/a2-decontaminate/rmdu/par
 "> a3.assembly.${counter}.${name}.$i.sh
 done
 }
+```
+
+## binning the contig
+```sh
 binning(){
 date
 [[ -d  $output/a4-binning/${name} ]] || mkdir -p  $output/a4-binning/${name}
@@ -215,14 +229,12 @@ echo start bing assembly sequences.
 source /public/home/2022122/xugang/bashrc
 conda run -n metawrap-env metaWRAP binning -l 200 -t ${thread}  --metabat2 --maxbin2 --concoct -a ${output}/a3-assembly/part.$i/final_assembly.fasta -o $output/a4-binning/part.$i ${output}/a2-decontaminate/rmdu/part.$i/*_1.fastq ${output}/a2-decontaminate/rmdu/part.$i/*_2.fastq
 " > a4.bin.${counter}.${name}.$i.sh
-
-
 done
-
-
-
 }
+```
 
+## Using Kraken to annotation taxtion.
+```sh
 kraken2anno(){
 date
 
@@ -245,6 +257,10 @@ source /public/home/2022122/xugang/bashrc
 
 }
 
+```
+
+## binning refine.
+```sh
 bin_refine(){
 date
 file='a6-binrefine'
@@ -283,14 +299,15 @@ conda run -n metawrap-env metawrap bin_refinement -o $output/a6-binrefine/part.$
 " >a6.binrefine.${counter}.${name}.$i.sh
 done
 }
+```
 
+## merge assembly bin result.
+```sh
 merge_assembly_bin(){
-
 rm $output/a3-assembly/total/merge.list
 for ((i=0; i<$partnum; i++));do
 echo "$output/a3-assembly/part.$i/final_assembly.fasta.clean.fa">>$output/a3-assembly/total/merge.list;
 done
-
 echo "#!/bin/bash
 #SBATCH -o ${output}/a3-assembly/total/merge.%j.out
 #SBATCH -e ${output}/a3-assembly/total/merge.%j.error
@@ -303,7 +320,6 @@ echo date
 for ((i=0; i<$partnum; i++));do
 echo "perl b8.rename.assemble.pl $output/a3-assembly/part.$i/final_assembly.fasta $i">>a7.merge.${counter}.sh
 done
-
 echo "xargs < $output/a3-assembly/total/merge.list cat > $output/a3-assembly/total/final_assembly.fasta
 ">>a7.merge.${counter}.sh
 
@@ -366,10 +382,11 @@ mv $output/a6-binrefine/total/tmp/*fa  $output/a6-binrefine/total/$j
 ">>a7.merge.bin2.sh;
 done
 done
-
-
 }
+```
 
+## visualize bloblogy result.
+```sh
 visualize_blobology(){
 date
 file='a7-blobology'
@@ -389,6 +406,10 @@ conda run -n metawrap-env metawrap blobology -a ${output}/a3-assembly/total/fina
 " > a7.blobology.${counter}.${name}.sh
 }
 
+```
+
+## Quantitative bin in different locations.
+```sh
 quant_bins_location(){
 date
 file='a9-quant_bins'
@@ -414,8 +435,10 @@ done
 
 }
 
+```
 
-
+## Classify bins.
+```sh
 classify_bins(){
 file='ab-classify'
 id=b
@@ -435,7 +458,10 @@ conda run -n metawrap-env metawrap classify_bins -o $output/${file}/${name} -t $
 "> ab.classify_bins.${counter}.${name}.sh
 
 }
+```
 
+## Annotation bin with different location or groups.
+```sh
 annotation_bins_location(){
 file='ac-bin-annotation'
 id=c
@@ -468,15 +494,16 @@ conda run -n metawrap-env metawrap annotate_bins -o $output/${file}/${name} -t  
 
 
 }
+```
 
-
+## Annotation contig location.
+```sh
 annotation_contigs_location(){
 file='ad-contig-annotation'
 id=dancontig
 
 [[ -d $output/${file}/${name} ]] || mkdir -p  $output/${file}/${name}
 [[ -d $output/a3-assembly/${name}/contig ]] || mkdir -p $output/a3-assembly/${name}/contig
-
 
 echo "#!/bin/bash
 #SBATCH -o ${output}/${file}/${name}/${name}.%j.out
@@ -499,10 +526,12 @@ source /public/home/2022122/xugang/bashrc
 conda run -n metawrap-env metawrap annotate_bins -o $output/${file}/${name} -t ${numcpu} -b $output/a3-assembly/${name}/contig
 ">> ad.annotation_contigs.${counter}.${name}.sh
 
-
 }
 
+```
 
+## Calculate the MAG completeness and contamination.
+```sh
 check_completeness_contamination(){
 date
 [[ -d  $output/ae-completeness_contamination/${name} ]] || mkdir -p  $output/ae-completeness_contamination/${name}
@@ -559,6 +588,10 @@ rm -rf ${output}/ae-completeness_contamination/${name}/maxbin2_bins/*
 conda run -n metawrap-env checkm lineage_wf -t 56 $output/a4-binning/${name}/maxbin2_bins ${output}/ae-completeness_contamination/${name}/maxbin2_bins -x fa">ae.check.${counter}.${name}.3.sh
 fi
 }
+```
+
+## Extract completeness and contamination results.
+```sh
 check_completeness_contamination_formate(){
 echo "">ae.2.formate.${name}.sh
 [[ -d  $output/ae-completeness_contamination/summary ]] || mkdir -p  $output/ae-completeness_contamination/summary
@@ -592,7 +625,10 @@ fi
 done
 
 }
+```
 
+## Annotation rRNA
+```sh
 searchrna(){
 file='af-rna-structure-search'
 id=f
@@ -618,9 +654,10 @@ touch $output/${file}/finish.${name}
 if [[  ! -d ${output}/a6-binrefine/${name}/metawrap_50_10_bins  ]] ;then
 rm af.rna-structure.${counter}.${name}.sh
 fi
-
 }
-
+```
+## Annotation tRNA.
+```sh
 searchtrna(){
 echo "start search tRNA"
 date
@@ -647,7 +684,9 @@ touch $output/${file}/finish.${name}
 ">>ag.trna.${counter}.${name}.sh
 
 }
-
+```
+## KO annotation.
+```sh
 koannotation(){
 file='ah-koannotation'
 [[ -d ${output}/ah-koannotation/${name} ]] || mkdir -p ${output}/ah-koannotation/${name}
@@ -680,8 +719,9 @@ source /public/home/2022122/xugang/bashrc
 exec_annotation -o ${output}/af-koannotation/${name}/${name}.contig.querry2KO --cpu ${thread} --format mapper -E 1e-5 ${output}/ad-contig-annotation/${name}/bin_translated_genes/final_assembly.fasta.clean.faa
 ">ah.koann.${counter}.${name}.contig.sh
 }
-
-
+```
+## gtdb annotaiton classify.
+```sh
 gtdbkf(){
 [[ -d ${output}/ag-gtdbtk/${name} ]] || mkdir -p ${output}/ag-gtdbtk/${name}
 file='ag-gtdbtk'
@@ -706,6 +746,9 @@ conda run -n gtdbtk-2.1.1 gtdbtk classify_wf --cpus ${thread} --batchfile ${outp
 
 
 }
+```
+##
+```sh
 dramf(){
 [[ -d ${output}/ah-dram/${name}/bin ]] || mkdir -p ${output}/ah-dram/${name}/bin
 
@@ -724,6 +767,9 @@ conda run -n DRAM DRAM.py annotate -i '${output}/a6-binrefine/total/metawrap_50_
 ">ah.dram.bin.$i.${counter}.${name}.bin.sh
 done
 }
+```
+## Uisng DRAM software to annotition gene.
+```sh
 dramfcontig(){
 [[ -d ${output}/ah-dram/${name}/contig ]] || mkdir -p ${output}/ah-dram/${name}/contig
 cp ${output}/a3-assembly/total/final_assembly.fasta ${output}/ah-dram/${name}/contig
@@ -746,6 +792,9 @@ conda run -n DRAM DRAM.py annotate -i ${output}/ah-dram/${name}/contig/$i -o ${o
 ">ah.dram.contig.${prefix}.${counter}.${name}.sh
 done
 }
+```
+## Extract dram annotation pathway.
+```sh
 mergedram(){
 [[ -d ${output}/ah-dram/${name}/summary/bin ]] || mkdir -p ${output}/ah-dram/${name}/summary/bin
 [[ -d ${output}/ah-dram/${name}/summary/contig ]] || mkdir -p ${output}/ah-dram/${name}/summary/contig
@@ -756,15 +805,12 @@ echo $i;
 echo "cp ${output}/ah-dram/${name}/bin/bin.$i/annotations.tsv ${output}/ah-dram/${name}/summary/bin/annotation.bin.$i.tsv
 ">>ah.dram.merge.bin.sh
 done
-
-
 }
+```
 
-
-
-
+##
+```sh
 counter=0
-
 for i in `ls -tr ${datapath2}|grep R1`;do
 date
         input2="${i/R1/R2}";
