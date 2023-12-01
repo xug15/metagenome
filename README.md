@@ -153,7 +153,7 @@ mv ${output}/a2-decontaminate/rmdu/total_2.fastq.unq.fq ${output}/a2-decontamina
 }
 ```
 
-## 
+## MAG assembly
 ```sh
 assemblyf_bd(){
 date
