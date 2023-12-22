@@ -65,7 +65,7 @@ datapath2=`pwd`/rawdata
 output=`pwd`/output
 adapt1=AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
 adapt2=AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT
-thread=28
+thread=64
 partnum=6
 node=Fnode2
 #node=Fnode1
@@ -73,6 +73,7 @@ node=Fnode2
 node=Cnode2
 #node=Gnode
 #################
+counter=0
 ```
 
 ## MAG assembly
@@ -81,25 +82,34 @@ assemblyf_bd(){
 date
 file=a3-assembly
 #[[ -d  $output/${file}/${name} ]] || mkdir -p  $output/${file}/${name}
-
-for ((i=0; i<$partnum; i++));do
-[[ -d  $output/${file}/part.$i ]] || mkdir -p  $output/${file}/part.$i
-echo $i;
+name1=$1
+name2=$2
+name=$3
+((counter++))
+[[ -d $output/$file/log ]] || mkdir -p $output/$file/log
 echo -e "#!/bin/bash
-#SBATCH -o ${output}/${file}/part.$i/part.$i.%j.out
-#SBATCH -e ${output}/${file}/part.$i/part.$i.%j.error
+#SBATCH -o ${output}/${file}/log/${name}.%j.out
+#SBATCH -e ${output}/${file}/log/${name}.%j.error
 #SBATCH --partition=${node}
-#SBATCH -J 3part.$i
+#SBATCH -J ${name}
 #SBATCH -N 1
 #SBATCH -n ${thread}
 
 echo 'start bing assembly sequences.'
 source /public/home/2022122/xugang/bashrc
-conda run -n metawrap-env metaWRAP assembly -1 $output/a2-decontaminate/rmdu/part.$i.1.fastq -2  $output/a2-decontaminate/rmdu/part.$i.2.fastq -m 2000 -t ${thread} --megahit -o $output/${file}/part.$i
-"> a3.assembly.${counter}.${name}.$i.sh
-done
+conda run -n metawrap-env metaWRAP assembly -1 rawdata/${name1} -2  rawdata/${name2} -m 2000 -t ${thread} --megahit -o $output/${file}/${name}
+touch ${output}/${file}/log/${name}
+"> a3.assembly.${counter}.${name}.sh
 }
+#assemblyf_bd X2_1.fq.gz X2_2.fq.gz X2
 
+
+for i in `ls rawdata|grep 1.fq.gz`;
+do echo $i;
+name="${i/_1.fq.gz/}"
+echo ${name}_1.fq.gz ${name}_2.fq.gz ${name} 
+assemblyf_bd ${name}_1.fq.gz ${name}_2.fq.gz ${name}
+done
 
 
 ```
