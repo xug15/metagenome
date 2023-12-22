@@ -1,5 +1,5 @@
 # metagenome
-
+[Project2](project2.md)
 
 ## 1. Set envrionment variable.
 ```sh
